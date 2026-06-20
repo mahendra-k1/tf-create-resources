@@ -1,6 +1,14 @@
 pipeline {
     agent any
 
+    parameters {
+        choice(
+            name: 'ACTION',
+            choices: ['apply', 'destroy'],
+            description: 'Select Terraform action'
+        )
+    }
+
     environment {
         TF_VERSION = "1.9.6"
         TF_BIN = "/usr/local/bin/terraform"
@@ -35,6 +43,9 @@ pipeline {
         }
 
         stage('Terraform Init & Apply') {
+            when {
+                expression { params.ACTION == 'apply' }
+            }
             steps {
                 withCredentials([
                     string(credentialsId: 'azure-subscription-id', variable: 'TF_VAR_subscription_id'),
@@ -46,6 +57,25 @@ pipeline {
                         terraform init -upgrade
                         terraform plan
                         terraform apply -auto-approve
+                    '''
+                }
+            }
+        }
+
+        stage('Terraform Destroy') {
+            when {
+                expression { params.ACTION == 'destroy' }
+            }
+            steps {
+                withCredentials([
+                    string(credentialsId: 'azure-subscription-id', variable: 'TF_VAR_subscription_id'),
+                    string(credentialsId: 'azure-client-id', variable: 'TF_VAR_client_id'),
+                    string(credentialsId: 'azure-client-secret', variable: 'TF_VAR_client_secret'),
+                    string(credentialsId: 'azure-tenant-id', variable: 'TF_VAR_tenant_id')
+                ]) {
+                    sh '''
+                        terraform init -upgrade
+                        terraform destroy -auto-approve
                     '''
                 }
             }
